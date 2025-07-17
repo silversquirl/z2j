@@ -3,12 +3,8 @@
     zig2nix.url = "github:silversquirl/zig2nix";
   };
 
-  outputs = {
-    flake-utils,
-    zig2nix,
-    ...
-  }:
-    flake-utils.lib.eachDefaultSystem (system: let
+  outputs = {zig2nix, ...}:
+    zig2nix.inputs.flake-utils.lib.eachDefaultSystem (system: let
       env = zig2nix.zig-env.${system} {zig = zig2nix.packages.${system}.zig-master;};
       src = with env.pkgs.lib.fileset;
         toSource {
