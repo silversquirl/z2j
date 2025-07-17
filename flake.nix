@@ -1,6 +1,6 @@
 {
   inputs = {
-    zig2nix.url = "github:Cloudef/zig2nix";
+    zig2nix.url = "github:silversquirl/zig2nix";
   };
 
   outputs = {
@@ -9,13 +9,7 @@
     ...
   }:
     flake-utils.lib.eachDefaultSystem (system: let
-      # Temporary, until zig2nix CI is fixed
-      zig = env.pkgs.callPackage (import (zig2nix + /src/zig/bin.nix)) {
-        inherit (env) zigHook;
-        release = import ./zig_release.nix;
-      };
-
-      env = zig2nix.zig-env.${system} {inherit zig;};
+      env = zig2nix.zig-env.${system} {zig = zig2nix.packages.${system}.zig-master;};
       src = with env.pkgs.lib.fileset;
         toSource {
           root = ./.;
