@@ -1,41 +1,37 @@
 {
   inputs = {
-    zig2nix.url = "github:silversquirl/zig2nix";
+    zig.url = "github:mitchellh/zig-overlay";
+    zls.url = "github:zigtools/zls";
+    # zls.inputs.zig-overlay.follows = "zig";
   };
 
-  outputs = {zig2nix, ...}: let
-    flake-utils = zig2nix.inputs.flake-utils;
-  in
-    flake-utils.lib.eachDefaultSystem (system: let
-      env = zig2nix.zig-env.${system} {zig = zig2nix.packages.${system}.zig-master;};
-      src = with env.pkgs.lib.fileset;
-        toSource {
-          root = ./.;
-          fileset = intersection (gitTracked ./.) (
-            fileFilter (f: !f.hasExt "nix" && f.name != "flake.lock") ./.
-          );
-        };
-    in rec {
-      packages.default = env.package {
-        inherit src;
-        pname = "z2j";
-        version = "0.1.0";
-        doCheck = true;
+  outputs = inputs:
+    inputs.zig.inputs.flake-utils.lib.eachDefaultSystem (system: let
+      overlay = final: prev: {
+        zig = inputs.zig.packages.${prev.system}.master;
+        zls = inputs.zls.packages.${prev.system}.zls;
       };
 
-      apps = {
-        z2j = {
-          type = "app";
-          program = "${packages.default}/bin/z2j";
-        };
+      pkgs = import inputs.zig.inputs.nixpkgs {
+        inherit system;
+        overlays = [overlay];
       };
 
-      formatter = with env.pkgs;
-        writeShellScriptBin "z2j-format" ''
-          ${lib.getExe zig} fmt --ast-check "$@" .
-          ${lib.getExe alejandra} --quiet "$@" .
-        '';
-
-      devShells.default = env.mkShell {name = "z2j";};
+      # Shim to make zls work with latest nightly zig
+      zig-shim = pkgs.writeShellScriptBin "zig" ''
+        if [[ "$1" == "env" ]]; then
+          ${pkgs.zig}/bin/zig "$@" | z2j
+          exit
+        fi
+        exec ${pkgs.zig}/bin/zig "$@"
+      '';
+    in {
+      devShells.default = pkgs.mkShellNoCC {
+        packages = with pkgs; [zig-shim zls];
+      };
+      apps.default = {
+        type = "app";
+        program = "${pkgs.zig}/bin/zig";
+      };
     });
 }
