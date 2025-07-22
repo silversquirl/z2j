@@ -29,9 +29,20 @@
       devShells.default = pkgs.mkShellNoCC {
         packages = with pkgs; [zig-shim zls];
       };
-      apps.default = {
-        type = "app";
-        program = "${pkgs.zig}/bin/zig";
+
+      packages.default = pkgs.stdenvNoCC.mkDerivation {
+        pname = "z2j";
+        version = "0.1.0";
+        src = ./.;
+        nativeBuildInputs = [pkgs.zig];
+        buildPhase = ''
+          runHook preBuild
+
+          zig build --prefix $out --global-cache-dir .zig-cache \
+            -Doptimize=ReleaseSafe -Dtarget=${system} -Dcpu=baseline
+
+          runHook postBuild
+        '';
       };
     });
 }
