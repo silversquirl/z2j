@@ -51,7 +51,7 @@ const Printer = struct {
             .null => try p.writer.writeAll("null"),
 
             .float_literal => |value| try p.writer.print("{d}", .{value}),
-            .string_literal => |str| try std.json.encodeJsonString(str, .{}, adaptToOldApi(p.writer)),
+            .string_literal => |str| try encodeJsonString(str, .{}, p.writer),
 
             .int_literal => |int| switch (int) {
                 .small => |val| switch (p.opts.integer) {
@@ -84,7 +84,7 @@ const Printer = struct {
 
             .enum_literal => |str| switch (p.opts.enum_literal) {
                 .err => return failValue("enum literal"),
-                .string => try std.json.encodeJsonString(str.get(p.zoir), .{}, adaptToOldApi(p.writer)),
+                .string => try encodeJsonString(str.get(p.zoir), .{}, p.writer),
                 .ident => try p.writer.writeAll(str.get(p.zoir)),
             },
 
@@ -93,7 +93,7 @@ const Printer = struct {
                     var buf: [4]u8 = undefined;
                     // i'm pretty sure this can't error, but i'll `try` it just in case
                     const count = try std.unicode.utf8Encode(c, &buf);
-                    try std.json.encodeJsonString(buf[0..count], .{}, adaptToOldApi(p.writer));
+                    try encodeJsonString(buf[0..count], .{}, p.writer);
                 },
                 .num => try p.writer.print("{d}", .{c}),
             },
@@ -124,7 +124,7 @@ const Printer = struct {
                         try p.writer.writeByte(',');
                     }
                     const name = fields.names[i].get(p.zoir);
-                    try std.json.encodeJsonString(name, .{}, adaptToOldApi(p.writer));
+                    try encodeJsonString(name, .{}, p.writer);
                     try p.writer.writeByte(':');
                     try p.print(fields.vals.at(i));
                 }
@@ -151,9 +151,5 @@ const Options = packed struct {
     enum_literal: enum(u2) { err, string, ident } = .string,
 };
 
-fn adaptToOldApi(new_writer: *std.Io.Writer) AdaptedWriter {
-    return .{ .context = new_writer };
-}
-const AdaptedWriter = std.Io.GenericWriter(*std.Io.Writer, std.Io.Writer.Error, std.Io.Writer.write);
-
 const std = @import("std");
+const encodeJsonString = std.json.Stringify.encodeJsonString;
