@@ -33,16 +33,47 @@
       packages.default = pkgs.stdenvNoCC.mkDerivation {
         pname = "z2j";
         version = "0.1.0";
-        src = ./.;
+        src = with pkgs.lib.fileset;
+          toSource {
+            root = ./.;
+            fileset = fileFilter (f: f.hasExt "zig") ./.;
+          };
+
+        zigDefaultFlags = [
+          "--global-cache-dir"
+          ".zig-cache"
+          "--color"
+          "off"
+
+          "-Dtarget=${system}"
+          "-Dcpu=baseline"
+        ];
+        zigBuildFlags = ["--release=safe"];
+        zigTestFlags = [];
+
         nativeBuildInputs = [pkgs.zig];
         buildPhase = ''
           runHook preBuild
-
-          zig build --prefix $out --global-cache-dir .zig-cache \
-            -Doptimize=ReleaseSafe -Dtarget=${system} -Dcpu=baseline
-
+          zig build --prefix "$out" \
+            $zigDefaultFlags "''${zigDefaultFlagsArray[@]}" \
+            $zigBuildFlags "''${zigBuildFlagsArray[@]}" \
+            install
           runHook postBuild
         '';
+
+        checkPhase = ''
+          runHook preCheck
+          zig build --prefix "$out" \
+            $zigDefaultFlags "''${zigDefaultFlagsArray[@]}" \
+            $zigTestFlags "''${zigTestFlagsArray[@]}" \
+            test
+          runHook postCheck
+        '';
       };
-    });
+    })
+    // {
+      overlays.default = final: prev: {
+        z2j = inputs.self.packages.${prev.system}.default;
+      };
+    };
 }
