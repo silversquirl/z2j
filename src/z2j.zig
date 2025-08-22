@@ -4,8 +4,8 @@ pub fn main() !void {
     const source = blk: {
         var buf: [1]u8 = undefined;
         var reader = std.fs.File.stdin().readerStreaming(&buf);
-        var list: std.ArrayListUnmanaged(u8) = try .initCapacity(gpa, try reader.getSize() + 1);
-        try reader.interface.appendRemaining(gpa, null, &list, .limited(16 << 30));
+        var list: std.ArrayListUnmanaged(u8) = try .initCapacity(gpa, (reader.getSize() catch 0) + 1);
+        try reader.interface.appendRemaining(gpa, &list, .limited(16 << 30));
         break :blk try list.toOwnedSliceSentinel(gpa, 0);
     };
 
